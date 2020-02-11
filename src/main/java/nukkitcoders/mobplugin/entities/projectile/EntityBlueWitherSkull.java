@@ -1,22 +1,22 @@
 package nukkitcoders.mobplugin.entities.projectile;
 
-import cn.nukkit.event.entity.ExplosionPrimeEvent;
-import nukkitcoders.mobplugin.utils.FireBallExplosion;
-import nukkitcoders.mobplugin.utils.Utils;
 import cn.nukkit.entity.Entity;
+import cn.nukkit.entity.EntityExplosive;
 import cn.nukkit.entity.projectile.EntityProjectile;
+import cn.nukkit.event.entity.ExplosionPrimeEvent;
+import cn.nukkit.level.Explosion;
+import cn.nukkit.level.GameRule;
 import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.level.particle.SmokeParticle;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.potion.Effect;
+import nukkitcoders.mobplugin.utils.Utils;
 
-public class EntityBlueWitherSkull extends EntityProjectile {
+public class EntityBlueWitherSkull extends EntityProjectile implements EntityExplosive {
 
     public static final int NETWORK_ID = 89;
 
-    protected boolean critical;
-
-    protected boolean canExplode = false;
+    private boolean canExplode;
 
     @Override
     public int getNetworkId() {
@@ -58,8 +58,6 @@ public class EntityBlueWitherSkull extends EntityProjectile {
 
     public EntityBlueWitherSkull(FullChunk chunk, CompoundTag nbt, Entity shootingEntity, boolean critical) {
         super(chunk, nbt, shootingEntity);
-
-        this.critical = critical;
     }
 
     public boolean isExplode() {
@@ -78,19 +76,10 @@ public class EntityBlueWitherSkull extends EntityProjectile {
 
         if (this.age > 1200 || this.hadCollision) {
             if (this.canExplode) {
-                ExplosionPrimeEvent ev = new ExplosionPrimeEvent(this, 1);
-                this.server.getPluginManager().callEvent(ev);
-
-                if (!ev.isCancelled()) {
-                    FireBallExplosion explosion = new FireBallExplosion(this, (float) ev.getForce(), this.shootingEntity);
-                    if (ev.isBlockBreaking()) {
-                        explosion.explodeA();
-                    }
-                    explosion.explodeB();
-                }
+                this.explode();
             }
 
-            this.kill();
+            this.close();
         } else {
             this.level.addParticle(new SmokeParticle(this.add(this.getWidth() / 2 + Utils.rand(-100.0, 100.0) / 500, this.getHeight() / 2 + Utils.rand(-100.0, 100.0) / 500, this.getWidth() / 2 + Utils.rand(-100.0, 100.0) / 500)));
         }
@@ -102,5 +91,19 @@ public class EntityBlueWitherSkull extends EntityProjectile {
     public void onCollideWithEntity(Entity entity) {
         super.onCollideWithEntity(entity);
         entity.addEffect(Effect.getEffect(Effect.WITHER).setAmplifier(1).setDuration(140));
+    }
+
+    @Override
+    public void explode() {
+        ExplosionPrimeEvent ev = new ExplosionPrimeEvent(this, 1.2);
+        this.server.getPluginManager().callEvent(ev);
+
+        if (!ev.isCancelled()) {
+            Explosion explosion = new Explosion(this, (float) ev.getForce(), this.shootingEntity);
+            if (ev.isBlockBreaking() && this.level.getGameRules().getBoolean(GameRule.MOB_GRIEFING)) {
+                explosion.explodeA();
+            }
+            explosion.explodeB();
+        }
     }
 }

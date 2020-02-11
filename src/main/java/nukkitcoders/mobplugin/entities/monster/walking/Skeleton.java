@@ -3,15 +3,14 @@ package nukkitcoders.mobplugin.entities.monster.walking;
 import cn.nukkit.block.Block;
 import cn.nukkit.Player;
 import cn.nukkit.entity.Entity;
+import cn.nukkit.entity.EntitySmite;
 import cn.nukkit.entity.projectile.EntityArrow;
 import cn.nukkit.entity.projectile.EntityProjectile;
-import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.EntityShootBowEvent;
 import cn.nukkit.event.entity.ProjectileLaunchEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemBlock;
 import cn.nukkit.item.ItemBow;
-import cn.nukkit.level.Level;
 import cn.nukkit.level.Location;
 import cn.nukkit.level.Sound;
 import cn.nukkit.level.format.FullChunk;
@@ -26,7 +25,7 @@ import nukkitcoders.mobplugin.utils.Utils;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Skeleton extends WalkingMonster {
+public class Skeleton extends WalkingMonster implements EntitySmite {
 
     public static final int NETWORK_ID = 34;
 
@@ -57,16 +56,16 @@ public class Skeleton extends WalkingMonster {
     }
 
     public void attackEntity(Entity player) {
-        if (this.attackDelay > 30 && Utils.rand(1, 32) < 4 && this.distanceSquared(player) <= 55) {
+        if (this.attackDelay > 23 && Utils.rand(1, 32) < 4 && this.distanceSquared(player) <= 55) {
             this.attackDelay = 0;
 
-            double f = 1.2;
-            double yaw = this.yaw + Utils.rand(-220.0, 220.0) / 10;
-            double pitch = this.pitch + Utils.rand(-120.0, 120.0) / 10;
+            double f = 1.3;
+            double yaw = this.yaw + Utils.rand(-12.0, 12.0);
+            double pitch = this.pitch + Utils.rand(-7.0, 7.0);
             Location pos = new Location(this.x - Math.sin(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)) * 0.5, this.y + this.getHeight() - 0.18,
                     this.z + Math.cos(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)) * 0.5, yaw, pitch, this.level);
             if (this.getLevel().getBlockIdAt((int)pos.getX(),(int)pos.getY(),(int)pos.getZ()) == Block.AIR) {
-                Entity k = MobPlugin.create("Arrow", pos, this);
+                Entity k = Entity.createEntity("Arrow", pos, this);
                 if (!(k instanceof EntityArrow)) {
                     return;
                 }
@@ -80,15 +79,15 @@ public class Skeleton extends WalkingMonster {
 
                 EntityProjectile projectile = ev.getProjectile();
                 if (ev.isCancelled()) {
-                    projectile.kill();
+                    if (this.stayTime > 0 || this.distance(this.target) <= ((this.getWidth() + 0.0d) / 2 + 0.05) * nearbyDistanceMultiplier()) projectile.close();
                 } else {
                     ProjectileLaunchEvent launch = new ProjectileLaunchEvent(projectile);
                     this.server.getPluginManager().callEvent(launch);
                     if (launch.isCancelled()) {
-                        projectile.kill();
+                        if (this.stayTime > 0 || this.distance(this.target) <= ((this.getWidth() + 0.0d) / 2 + 0.05) * nearbyDistanceMultiplier()) projectile.close();
                     } else {
                         projectile.spawnToAll();
-                        projectile.namedTag.putBoolean("canNotPickup", true);
+                        ((EntityArrow) projectile).setPickupMode(EntityArrow.PICKUP_NONE);
                         this.level.addSound(this, Sound.RANDOM_BOW);
                     }
                 }
@@ -116,12 +115,14 @@ public class Skeleton extends WalkingMonster {
 
     @Override
     public boolean entityBaseTick(int tickDiff) {
-        boolean hasUpdate;
+        if (getServer().getDifficulty() == 0) {
+            this.close();
+            return true;
+        }
 
-        hasUpdate = super.entityBaseTick(tickDiff);
+        boolean hasUpdate = super.entityBaseTick(tickDiff);
 
-        int time = this.getLevel().getTime() % Level.TIME_FULL;
-        if (!this.isOnFire() && !this.level.isRaining() && (time < 12567 || time > 23450) && !this.isInsideOfWater() && this.level.canBlockSeeSky(this)) {
+        if (MobPlugin.getInstance().shouldMobBurn(level, this)) {
             this.setOnFire(100);
         }
 
@@ -132,18 +133,12 @@ public class Skeleton extends WalkingMonster {
     public Item[] getDrops() {
         List<Item> drops = new ArrayList<>();
 
-        if (this.hasCustomName()) {
-            drops.add(Item.get(Item.NAME_TAG, 0, 1));
+        for (int i = 0; i < Utils.rand(0, 2); i++) {
+            drops.add(Item.get(Item.BONE, 0, 1));
         }
 
-        if (this.lastDamageCause instanceof EntityDamageByEntityEvent && !this.isBaby()) {
-            for (int i = 0; i < Utils.rand(0, 2); i++) {
-                drops.add(Item.get(Item.BONE, 0, 1));
-            }
-
-            for (int i = 0; i < Utils.rand(0, 2); i++) {
-                drops.add(Item.get(Item.ARROW, 0, 1));
-            }
+        for (int i = 0; i < Utils.rand(0, 2); i++) {
+            drops.add(Item.get(Item.ARROW, 0, 1));
         }
 
         return drops.toArray(new Item[0]);
@@ -151,6 +146,11 @@ public class Skeleton extends WalkingMonster {
 
     @Override
     public int getKillExperience() {
-        return this.isBaby() ? 0 : 5;
+        return 5;
+    }
+
+    @Override
+    public int nearbyDistanceMultiplier() {
+        return 10;
     }
 }

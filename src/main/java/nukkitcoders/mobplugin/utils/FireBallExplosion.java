@@ -18,13 +18,11 @@ import cn.nukkit.event.entity.EntityExplodeEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemBlock;
 import cn.nukkit.math.*;
-import cn.nukkit.network.protocol.ExplodePacket;
 import cn.nukkit.utils.Hash;
 import it.unimi.dsi.fastutil.longs.LongArraySet;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class FireBallExplosion extends Explosion {
 
@@ -57,7 +55,7 @@ public class FireBallExplosion extends Explosion {
                         double pointerX = this.source.x;
                         double pointerY = this.source.y;
                         double pointerZ = this.source.z;
-                        for (double blastForce = this.size * (ThreadLocalRandom.current().nextInt(700, 1301)) / 1000d; blastForce > 0; blastForce -= 0.3d * 0.75d) {
+                        for (double blastForce = this.size * (Utils.random.nextInt(700, 1301)) / 1000d; blastForce > 0; blastForce -= 0.22499999999999998) {
                             int x = (int) pointerX;
                             int y = (int) pointerY;
                             int z = (int) pointerZ;
@@ -92,7 +90,6 @@ public class FireBallExplosion extends Explosion {
     @Override
     public boolean explodeB() {
         LongArraySet updateBlocks = new LongArraySet();
-        List<Vector3> send = new ArrayList<>();
         Vector3 source = (new Vector3(this.source.x, this.source.y, this.source.z)).floor();
         double yield = (1d / this.size) * 100d;
         if (this.what instanceof Entity) {
@@ -134,7 +131,7 @@ public class FireBallExplosion extends Explosion {
         ItemBlock air = new ItemBlock(new BlockAir());
         for (Block block : this.affectedBlocks) {
             if (block.getId() == Block.TNT) {
-                ((BlockTNT) block).prime(new NukkitRandom().nextRange(10, 30), this.what instanceof Entity ? (Entity) this.what : null);
+                ((BlockTNT) block).prime(Utils.rand(10, 30), this.what instanceof Entity ? (Entity) this.what : null);
             } else if (Math.random() * 100 < yield) {
                 for (Item drop : block.getDrops(air)) {
                     this.level.dropItem(block.add(0.5, 0.5, 0.5), drop);
@@ -154,15 +151,7 @@ public class FireBallExplosion extends Explosion {
                     updateBlocks.add(index);
                 }
             }
-            send.add(new Vector3(block.x - source.x, block.y - source.y, block.z - source.z));
         }
-        ExplodePacket pk = new ExplodePacket();
-        pk.x = (float) this.source.x;
-        pk.y = (float) this.source.y;
-        pk.z = (float) this.source.z;
-        pk.radius = (float) this.size;
-        pk.records = send.toArray(new Vector3[0]);
-        this.level.addChunkPacket((int) source.x >> 4, (int) source.z >> 4, pk);
         this.level.addSound(new Vector3(this.source.x, this.source.y, this.source.z), Sound.RANDOM_EXPLODE);
         return true;
     }

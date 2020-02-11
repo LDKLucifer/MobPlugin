@@ -1,31 +1,16 @@
 package nukkitcoders.mobplugin.entities.monster.flying;
 
-import cn.nukkit.block.Block;
-import cn.nukkit.block.BlockFence;
-import cn.nukkit.block.BlockFenceGate;
-import cn.nukkit.block.BlockLiquid;
 import cn.nukkit.entity.Entity;
-import cn.nukkit.entity.EntityCreature;
-import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.ProjectileLaunchEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.level.Location;
 import cn.nukkit.level.Sound;
 import cn.nukkit.level.format.FullChunk;
-import cn.nukkit.math.BlockFace;
-import cn.nukkit.math.NukkitMath;
-import cn.nukkit.math.Vector2;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.nbt.tag.CompoundTag;
-import nukkitcoders.mobplugin.MobPlugin;
-import nukkitcoders.mobplugin.entities.BaseEntity;
-import nukkitcoders.mobplugin.entities.animal.Animal;
 import nukkitcoders.mobplugin.entities.monster.FlyingMonster;
-import nukkitcoders.mobplugin.entities.projectile.EntityFireBall;
+import nukkitcoders.mobplugin.entities.projectile.EntityBlazeFireBall;
 import nukkitcoders.mobplugin.utils.Utils;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class Blaze extends FlyingMonster {
 
@@ -66,28 +51,27 @@ public class Blaze extends FlyingMonster {
 
     @Override
     public void attackEntity(Entity player) {
-        if (this.attackDelay > 20 && Utils.rand(1, 32) < 4 && this.distance(player) <= 100) {
+        if (this.attackDelay > 23 && Utils.rand(1, 32) < 4 && this.distance(player) <= 100) {
             this.attackDelay = 0;
 
             double f = 1.1;
-            double yaw = this.yaw + Utils.rand(-150.0, 150.0) / 10;
-            double pitch = this.pitch + Utils.rand(-75.0, 75.0) / 10;
+            double yaw = this.yaw + Utils.rand(-10.0, 10.0);
+            double pitch = this.pitch + Utils.rand(-7.0, 7.0);
             Location pos = new Location(this.x - Math.sin(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)) * 0.5, this.y + this.getEyeHeight(),
                     this.z + Math.cos(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)) * 0.5, yaw, pitch, this.level);
-            Entity k = MobPlugin.create("FireBall", pos, this);
-            if (!(k instanceof EntityFireBall)) {
+            Entity k = Entity.createEntity("BlazeFireBall", pos, this);
+            if (!(k instanceof EntityBlazeFireBall)) {
                 return;
             }
 
-            EntityFireBall fireball = (EntityFireBall) k;
-            fireball.setExplode(true);
+            EntityBlazeFireBall fireball = (EntityBlazeFireBall) k;
             fireball.setMotion(new Vector3(-Math.sin(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)) * f * f, -Math.sin(Math.toRadians(pitch)) * f * f,
                     Math.cos(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)) * f * f));
 
             ProjectileLaunchEvent launch = new ProjectileLaunchEvent(fireball);
             this.server.getPluginManager().callEvent(launch);
             if (launch.isCancelled()) {
-                fireball.kill();
+                fireball.close();
             } else {
                 fireball.spawnToAll();
                 this.level.addSound(this, Sound.MOB_BLAZE_SHOOT);
@@ -97,21 +81,26 @@ public class Blaze extends FlyingMonster {
 
     @Override
     public Item[] getDrops() {
-        List<Item> drops = new ArrayList<>();
-
-        if (this.hasCustomName()) {
-            drops.add(Item.get(Item.NAME_TAG, 0, 1));
-        }
-
-        if (this.lastDamageCause instanceof EntityDamageByEntityEvent && !this.isBaby()) {
-            drops.add(Item.get(Item.BLAZE_ROD, 0, Utils.rand(0, 1)));
-        }
-
-        return drops.toArray(new Item[0]);
+        return new Item[]{Item.get(Item.BLAZE_ROD, 0, Utils.rand(0, 1))};
     }
 
     @Override
     public int getKillExperience() {
-        return this.isBaby() ? 0 : 10;
+        return 10;
+    }
+
+    @Override
+    public boolean entityBaseTick(int tickDiff) {
+        if (getServer().getDifficulty() == 0) {
+            this.close();
+            return true;
+        }
+
+        return super.entityBaseTick(tickDiff);
+    }
+
+    @Override
+    public int nearbyDistanceMultiplier() {
+        return 30;
     }
 }

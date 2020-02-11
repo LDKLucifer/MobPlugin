@@ -62,7 +62,7 @@ public class EntityShulkerBullet extends EntityProjectile {
         }
 
         if (this.age > 1200 || this.isCollided) {
-            this.kill();
+            this.close();
         }
 
         return super.onUpdate(currentTick);
@@ -78,6 +78,7 @@ public class EntityShulkerBullet extends EntityProjectile {
     @Override
     public void onCollideWithEntity(Entity entity) {
         super.onCollideWithEntity(entity);
+        this.level.addSound(this, Sound.MOB_SHULKER_BULLET_HIT);
         entity.addEffect(Effect.getEffect(Effect.LEVITATION).setAmplifier(1).setDuration(200));
     }
 }

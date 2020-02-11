@@ -13,8 +13,6 @@ import nukkitcoders.mobplugin.entities.Tameable;
  */
 public abstract class TameableMonster extends WalkingMonster implements Tameable {
 
-    private Server server;
-
     private Player owner = null;
 
     private String ownerUUID = "";
@@ -23,7 +21,6 @@ public abstract class TameableMonster extends WalkingMonster implements Tameable
 
     public TameableMonster(FullChunk chunk, CompoundTag nbt) {
         super(chunk, nbt);
-        this.server = Server.getInstance();
     }
 
     @Override
@@ -33,8 +30,10 @@ public abstract class TameableMonster extends WalkingMonster implements Tameable
         if (this.namedTag != null) {
             String ownerName = namedTag.getString(NAMED_TAG_OWNER);
             if (ownerName != null && ownerName.length() > 0) {
-                Player player = server.getPlayer(ownerName);
-                this.setOwner(player);
+                Player player = Server.getInstance().getPlayer(ownerName);
+                if (player != null) {
+                    this.setOwner(player);
+                }
                 this.setSitting(namedTag.getBoolean(NAMED_TAG_SITTING));
             }
         }
@@ -84,7 +83,7 @@ public abstract class TameableMonster extends WalkingMonster implements Tameable
     }
 
 
-    private void setTamed (boolean tamed) {
+    private void setTamed(boolean tamed) {
         this.setDataFlag(DATA_FLAGS, DATA_FLAG_TAMED, tamed);
     }
 

@@ -5,7 +5,7 @@ import cn.nukkit.entity.Entity;
 import cn.nukkit.entity.EntityCreature;
 import cn.nukkit.entity.projectile.EntityProjectile;
 import cn.nukkit.entity.projectile.EntitySnowball;
-import cn.nukkit.event.entity.EntityDamageByEntityEvent;
+import cn.nukkit.event.entity.EntityDamageEvent;
 import cn.nukkit.event.entity.EntityShootBowEvent;
 import cn.nukkit.event.entity.ProjectileLaunchEvent;
 import cn.nukkit.item.Item;
@@ -14,7 +14,7 @@ import cn.nukkit.level.Sound;
 import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.nbt.tag.CompoundTag;
-import nukkitcoders.mobplugin.MobPlugin;
+import cn.nukkit.network.protocol.LevelSoundEventPacket;
 import nukkitcoders.mobplugin.entities.monster.WalkingMonster;
 import nukkitcoders.mobplugin.utils.Utils;
 
@@ -24,6 +24,8 @@ import java.util.List;
 public class SnowGolem extends WalkingMonster {
 
     public static final int NETWORK_ID = 21;
+
+    public boolean sheared = false;
 
     public SnowGolem(FullChunk chunk, CompoundTag nbt) {
         super(chunk, nbt);
@@ -49,6 +51,10 @@ public class SnowGolem extends WalkingMonster {
     public void initEntity() {
         super.initEntity();
         this.setMaxHealth(4);
+
+        if (this.namedTag.getBoolean("Sheared")) {
+            this.shear(true);
+        }
     }
 
     @Override
@@ -62,11 +68,11 @@ public class SnowGolem extends WalkingMonster {
             this.attackDelay = 0;
 
             double f = 1.2;
-            double yaw = this.yaw + Utils.rand(-220.0, 220.0) / 10;
-            double pitch = this.pitch + Utils.rand(-120.0, 120.0) / 10;
+            double yaw = this.yaw + Utils.rand(-12.0, 12.0);
+            double pitch = this.pitch + Utils.rand(-7.0, 7.0);
             Location location = new Location(this.x + (-Math.sin(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)) * 0.5), this.y + this.getEyeHeight(),
                     this.z + (Math.cos(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)) * 0.5), yaw, pitch, this.level);
-            Entity k = MobPlugin.create("Snowball", location, this);
+            Entity k = Entity.createEntity("Snowball", location, this);
             if (k == null) {
                 return;
             }
@@ -84,12 +90,12 @@ public class SnowGolem extends WalkingMonster {
 
             EntityProjectile projectile = ev.getProjectile();
             if (ev.isCancelled()) {
-                projectile.kill();
+                if (this.stayTime > 0 || this.distance(this.target) <= ((this.getWidth() + 0.0d) / 2 + 0.05) * nearbyDistanceMultiplier()) projectile.close();
             } else if (projectile != null) {
                 ProjectileLaunchEvent launch = new ProjectileLaunchEvent(projectile);
                 this.server.getPluginManager().callEvent(launch);
                 if (launch.isCancelled()) {
-                    projectile.kill();
+                    if (this.stayTime > 0 || this.distance(this.target) <= ((this.getWidth() + 0.0d) / 2 + 0.05) * nearbyDistanceMultiplier()) projectile.close();
                 } else {
                     projectile.spawnToAll();
                     this.level.addSound(this, Sound.MOB_SNOWGOLEM_SHOOT);
@@ -102,14 +108,8 @@ public class SnowGolem extends WalkingMonster {
     public Item[] getDrops() {
         List<Item> drops = new ArrayList<>();
 
-        if (this.hasCustomName()) {
-            drops.add(Item.get(Item.NAME_TAG, 0, 1));
-        }
-
-        if (this.lastDamageCause instanceof EntityDamageByEntityEvent && !this.isBaby()) {
-            for (int i = 0; i < Utils.rand(0, 15); i++) {
-                drops.add(Item.get(Item.SNOWBALL, 0, 1));
-            }
+        for (int i = 0; i < Utils.rand(0, 15); i++) {
+            drops.add(Item.get(Item.SNOWBALL, 0, 1));
         }
 
         return drops.toArray(new Item[0]);
@@ -123,5 +123,42 @@ public class SnowGolem extends WalkingMonster {
     @Override
     public String getName() {
         return "Snow Golem";
+    }
+
+    @Override
+    public int nearbyDistanceMultiplier() {
+        return 10;
+    }
+
+    @Override
+    public boolean onInteract(Player player, Item item, Vector3 clickedPos) {
+        if (item.equals(Item.get(Item.SHEARS, 0, 1), false) && !this.sheared) {
+            this.shear(true);
+            this.level.addLevelSoundEvent(this, LevelSoundEventPacket.SOUND_SHEAR);
+            player.getInventory().getItemInHand().setDamage(item.getDamage() + 1);
+            return true;
+        }
+
+        return super.onInteract(player, item, clickedPos);
+    }
+
+    public void shear(boolean shear) {
+        this.sheared = shear;
+        this.setDataFlag(DATA_FLAGS, DATA_FLAG_SHEARED, shear);
+    }
+
+    public void saveNBT() {
+        super.saveNBT();
+
+        this.namedTag.putBoolean("Sheared", this.sheared);
+    }
+
+    @Override
+    public boolean entityBaseTick(int tickDiff) {
+        if (this.age % 20 == 0 && this.level.isRaining() && this.level.canBlockSeeSky(this)) {
+            this.attack(new EntityDamageEvent(this, EntityDamageEvent.DamageCause.FIRE_TICK, 1));
+        }
+
+        return super.entityBaseTick(tickDiff);
     }
 }

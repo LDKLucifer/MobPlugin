@@ -64,7 +64,7 @@ public abstract class FlyingEntity extends BaseEntity {
                 y = Utils.rand(-10, 10);
             }
             this.target = this.add(Utils.rand() ? x : -x, y, Utils.rand() ? z : -z);
-        } else if (Utils.rand(1, 410) == 1) {
+        } else if (Utils.rand(1, 100) == 1) {
             x = Utils.rand(10, 30);
             z = Utils.rand(10, 30);
             if (this.y > maxY) {
@@ -72,9 +72,9 @@ public abstract class FlyingEntity extends BaseEntity {
             } else {
                 y = Utils.rand(-10, 10);
             }
-            this.stayTime = Utils.rand(90, 400);
+            this.stayTime = Utils.rand(100, 200);
             this.target = this.add(Utils.rand() ? x : -x, y, Utils.rand() ? z : -z);
-        } else if (this.moveTime <= 0 || !(this.target instanceof Vector3)) {
+        } else if (this.moveTime <= 0 || this.target == null) {
             x = Utils.rand(20, 100);
             z = Utils.rand(20, 100);
             if (this.y > maxY) {
@@ -83,7 +83,7 @@ public abstract class FlyingEntity extends BaseEntity {
                 y = Utils.rand(-10, 10);
             }
             this.stayTime = 0;
-            this.moveTime = Utils.rand(300, 1200);
+            this.moveTime = Utils.rand(100, 200);
             this.target = this.add(Utils.rand() ? x : -x, y, Utils.rand() ? z : -z);
         }
     }
@@ -115,7 +115,7 @@ public abstract class FlyingEntity extends BaseEntity {
                     this.motionZ = this.getSpeed() * 0.15 * (z / diff);
                     this.motionY = this.getSpeed() * 0.27 * (y / diff);
                 }
-                this.yaw = Math.toDegrees(-Math.atan2(x / diff, z / diff));
+                if (this.stayTime <= 0 || Utils.rand()) this.yaw = Math.toDegrees(-Math.atan2(x / diff, z / diff));
             }
     
             Vector3 before = this.target;
@@ -126,7 +126,7 @@ public abstract class FlyingEntity extends BaseEntity {
                 double z = this.target.z - this.z;
     
                 double diff = Math.abs(x) + Math.abs(z);
-                if (this.stayTime > 0 || this.distance(this.target) <= (this.getWidth() + 0.0d) / 2 + 0.05) {
+                if (this.stayTime > 0 || this.distance(this.target) <= ((this.getWidth() + 0.0d) / 2 + 0.05) * nearbyDistanceMultiplier()) {
                     this.motionX = 0;
                     this.motionZ = 0;
                 } else {
@@ -134,7 +134,7 @@ public abstract class FlyingEntity extends BaseEntity {
                     this.motionZ = this.getSpeed() * 0.15 * (z / diff);
                     this.motionY = this.getSpeed() * 0.27 * (y / diff);
                 }
-                this.yaw = Math.toDegrees(-Math.atan2(x / diff, z / diff));
+                if (this.stayTime <= 0 || Utils.rand()) this.yaw = Math.toDegrees(-Math.atan2(x / diff, z / diff));
             }
     
             double dx = this.motionX * tickDiff;
